@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conexión a API y Gráficos Dinámicos</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        h1 {
+            color: #007bff;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 600px;
+            margin-top: 20px;
+        }
+        label {
+            margin-top: 10px;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #frameFiltro {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #e9ecef;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 600px;
+        }
+        #dataFields {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 600px;
+            display: none;
+        }
+        #chartContainer {
+            margin-top: 20px;
+            width: 80%;
+            max-width: 600px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Interfaz de API y Gráficos Dinámicos</h1>
+    <div class="container">
+        <label for="apiDropdown">Seleccionar dirección de API:</label>
+        <select id="apiDropdown">
+            <option value="">Seleccionar...</option>
+            <!-- Opciones de la API -->
+        </select>
+
+        <label for="apiTextbox">O ingresar dirección de API:</label>
+        <input type="text" id="apiTextbox" placeholder="http://direccion-de-api.com">
+
+        <button id="conectarBtn">Conectar</button>
+    </div>
+
+    <div id="frameFiltro" class="container">
+        <h2>Campos de la Base de Datos</h2>
+        <!-- Filtros cargados -->
+    </div>
+
+    <div id="dataFields" class="container">
+        <h2>Datos de la API</h2>
+        <!-- Campos de datos cargados -->
+    </div>
+
+    <div id="chartContainer" class="container">
+        <canvas id="apiChart"></canvas>
+    </div>
+
+    <script>
+        document.getElementById("conectarBtn").addEventListener("click", function() {
+            const apiDireccion = document.getElementById("apiDropdown").value || document.getElementById("apiTextbox").value;
+            if(apiDireccion) {
+                fetch(apiDireccion)
+                    .then(response => response.json())
+                    .then(data => {
+                        const fields = Object.keys(data[0]);
+                        const numericFields = fields.filter(field => typeof data[0][field] === 'number');
+                        const stringFields = fields.filter(field => typeof data[0][field] === 'string');
+
+                        document.getElementById("dataFields").style.display = "block";
+                        const dataDiv = document.getElementById("dataFields");
+                        dataDiv.innerHTML = ''; // Limpiar contenido previo
+                        fields.forEach(field => {
+                            const fieldElement = document.createElement("p");
+                            fieldElement.textContent = field + ": " + typeof data[0][field];
+                            dataDiv.appendChild(fieldElement);
+                        });
+
+                        // Mostrar los filtros solo después de cargar los datos
+                        document.getElementById("frameFiltro").style.display = "block";
+                        const frameFiltroDiv = document.getElementById("frameFiltro");
+                        frameFiltroDiv.innerHTML = ''; // Limpiar contenido previo
+                        fields.forEach(field => {
+                            const fieldElement = document.createElement("p");
+                            fieldElement.textContent = field + ": " + typeof data[0][field];
+                            frameFiltroDiv.appendChild(fieldElement);
+                        });
+
+                        // Crear gráficos dinámicos según los tipos de datos
+                        const ctx = document.getElementById('apiChart').getContext('2d');
+                        let apiChart;
+                        if (numericFields.length > 0) {
+                            const numericData = numericFields.map(field => data[0][field]);
+                            apiChart = new Chart(ctx, {
+                                type: 'bar',
+                                data: {
+                                    labels: numericFields,
+                                    datasets: [{
+                                        label: 'Valores numéricos',
+                                        data: numericData,
+                                        backgroundColor: 'rgba(0, 123, 255, 0.5)',
+                                        borderColor: 'rgba(0, 123, 255, 1)',
+                                        borderWidth: 1
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    scales: {
+                                        y: {
+                                            beginAtZero: true
+                                        }
+                                    }
+                                }
+                            });
+                        } else if (stringFields.length > 0) {
+                            const stringDataCounts = stringFields.map(field => {
+                                const uniqueValues = [...new Set(data.map(item => item[field]))];
+                                return uniqueValues.length;
+                            });
+                            apiChart = new Chart(ctx, {
+                                type: 'pie',
+                                data: {
+                                    labels: stringFields,
+                                    datasets: [{
+                                        label: 'Valores categóricos',
+                                        data: stringDataCounts,
+                                        backgroundColor: 'rgba(0, 123, 255, 0.5)',
+                                        borderColor: 'rgba(0, 123, 255, 1)',
+                                        borderWidth: 1
+                                    }]
+                                },
+                                options: {
+                                    responsive: true
+                                }
+                            });
+                        }
+                    });
+            }
+        });
+    </script>
+</body>
+</html>
